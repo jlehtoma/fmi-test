@@ -1,3 +1,4 @@
 *.Rmd
 data/*
 .Rproj*
+.Rproj.user
