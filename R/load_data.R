@@ -3,6 +3,8 @@ library(dplyr)
 library(ggplot2)
 library(reshape2)
 
+source("R/theme.R")
+
 get_weather_data <- function(apiKey, startDateTime, endDateTime, fmisid) {
 
   request <- FMIWFSRequest(apiKey=apiKey)
@@ -53,8 +55,8 @@ get_weather_data <- function(apiKey, startDateTime, endDateTime, fmisid) {
 apiKey <- "04d9592f-c8c0-4c8d-b3c2-50465da8bb47"
 
 # 1.5.-31.7.2011
-startDateTime <- "2012-01-01"
-endDateTime <- "2012-12-31"
+startDateTime <- "2013-01-01"
+endDateTime <- "2013-12-31"
 
 kuusamo.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, "101887")
 helsinki.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, "100971")
