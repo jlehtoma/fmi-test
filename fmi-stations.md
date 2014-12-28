@@ -118,7 +118,7 @@ response <- client$getDailyWeather(startDateTime="2014-01-01T00:00:00Z",
 
 {% highlight text %}
 ## OGR data source with driver: GML 
-## Source: "/tmp/Rtmp1zJKO6/file1661698b2d55", layer: "PointTimeSeriesObservation"
+## Source: "/tmp/Rtmp1zJKO6/file1661241c0cf4", layer: "PointTimeSeriesObservation"
 ## with 5 features and 13 fields
 ## Feature type: wkbPoint with 2 dimensions
 {% endhighlight %}
@@ -177,7 +177,7 @@ kiuta.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kiuta)
 
 {% highlight text %}
 ## OGR data source with driver: GML 
-## Source: "/tmp/Rtmp1zJKO6/file166142ecd8e9", layer: "PointTimeSeriesObservation"
+## Source: "/tmp/Rtmp1zJKO6/file166133babf98", layer: "PointTimeSeriesObservation"
 ## with 5 features and 743 fields
 ## Feature type: wkbPoint with 2 dimensions
 {% endhighlight %}
@@ -221,7 +221,7 @@ kaisa.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kaisa)
 
 {% highlight text %}
 ## OGR data source with driver: GML 
-## Source: "/tmp/Rtmp1zJKO6/file166176a9c7bd", layer: "PointTimeSeriesObservation"
+## Source: "/tmp/Rtmp1zJKO6/file16613a3af2a", layer: "PointTimeSeriesObservation"
 ## with 5 features and 743 fields
 ## Feature type: wkbPoint with 2 dimensions
 {% endhighlight %}
@@ -302,8 +302,9 @@ sessionInfo()
 ## [1] reshape2_1.4.1 ggplot2_1.0.0  dplyr_0.3.0.2  fmi_0.1.12     R6_2.0.1       knitr_1.8      devtools_1.6.1
 ## 
 ## loaded via a namespace (and not attached):
-##  [1] assertthat_0.1   colorspace_1.2-4 DBI_0.3.1        digest_0.6.7     evaluate_0.5.5   formatR_1.0      gtable_0.1.2    
-##  [8] htmltools_0.2.6  labeling_0.3     lattice_0.20-29  lazyeval_0.1.9   magrittr_1.5     MASS_7.3-33      munsell_0.4.2   
-## [15] parallel_3.1.1   plyr_1.8.1       proto_0.3-10     raster_2.3-12    Rcpp_0.11.3      rgdal_0.9-1      rmarkdown_0.4.2 
-## [22] rwfs_0.1.12      scales_0.2.4     sp_1.0-16        stringr_0.6.2    tools_3.1.1
+##  [1] assertthat_0.1   colorspace_1.2-4 DBI_0.3.1        digest_0.6.7     evaluate_0.5.5   formatR_1.0     
+##  [7] gtable_0.1.2     htmltools_0.2.6  labeling_0.3     lattice_0.20-29  lazyeval_0.1.9   magrittr_1.5    
+## [13] MASS_7.3-33      munsell_0.4.2    parallel_3.1.1   plyr_1.8.1       proto_0.3-10     raster_2.3-12   
+## [19] Rcpp_0.11.3      rgdal_0.9-1      rmarkdown_0.4.2  rwfs_0.1.12      scales_0.2.4     sp_1.0-16       
+## [25] stringr_0.6.2    tools_3.1.1
 {% endhighlight %}
