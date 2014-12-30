@@ -86,7 +86,7 @@ kiutakongas.station
 The convience methods in `fmi` took a little adjusting, but afterwards it is
 possible to use `FMISID` in the query paramaters. Following the `fmi` tutorial,
 it is now possible to do the following. **NOTE!** You will need to provide
-your own apiKey first:
+[your own apiKey](http://en.ilmatieteenlaitos.fi/open-data-manual-fmi-wfs-services) first:
 
 
 {% highlight r %}
@@ -118,7 +118,7 @@ response <- client$getDailyWeather(startDateTime="2014-01-01T00:00:00Z",
 
 {% highlight text %}
 ## OGR data source with driver: GML 
-## Source: "/tmp/Rtmp1zJKO6/file1661241c0cf4", layer: "PointTimeSeriesObservation"
+## Source: "/tmp/Rtmp7qUcRy/filee1636d3f243", layer: "PointTimeSeriesObservation"
 ## with 5 features and 13 fields
 ## Feature type: wkbPoint with 2 dimensions
 {% endhighlight %}
@@ -146,17 +146,14 @@ get_weather_data <- function(apiKey, startDateTime, endDateTime, fmisid) {
                                      fmisid=fmisid)
   dat <- as.data.frame(response)
   
-  # Get the variable names
-  var.names <- dplyr::select(dat, variable) 
-  
   # Manual splicing and dicing
-  # Get just the times and values
-  measurements <- dplyr::select(dat, -fid, -gml_id, -beginPosition, -endPosition,
-                                -timePosition, -value, -identifier, -name1, 
-                                -name2, -name3, -region, -coords.x2, 
-                                -coords.x1)
-  measurements$time <- as.Date(measurements$time)
-  measurements$measurement <- as.numeric(measurements$measurement)
+  # 1. Get just the time, variable, and measurement
+  # 2. Replace NaNs in the response with NAs and convert measurement to numeric
+  # 3. Coerce time strings to Dates
+  measurements <- dat %>%
+    select(time, variable, measurement) %>%
+    mutate(measurement=as.numeric(ifelse(is.na(measurement), NA, measurement))) %>%
+    mutate(time=as.Date(time))
   
   return(measurements)
 }
@@ -177,7 +174,7 @@ kiuta.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kiuta)
 
 {% highlight text %}
 ## OGR data source with driver: GML 
-## Source: "/tmp/Rtmp1zJKO6/file166133babf98", layer: "PointTimeSeriesObservation"
+## Source: "/tmp/Rtmp7qUcRy/filee167651b46d", layer: "PointTimeSeriesObservation"
 ## with 5 features and 743 fields
 ## Feature type: wkbPoint with 2 dimensions
 {% endhighlight %}
@@ -221,7 +218,7 @@ kaisa.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kaisa)
 
 {% highlight text %}
 ## OGR data source with driver: GML 
-## Source: "/tmp/Rtmp1zJKO6/file16613a3af2a", layer: "PointTimeSeriesObservation"
+## Source: "/tmp/Rtmp7qUcRy/filee16190c6a38", layer: "PointTimeSeriesObservation"
 ## with 5 features and 743 fields
 ## Feature type: wkbPoint with 2 dimensions
 {% endhighlight %}
@@ -299,7 +296,7 @@ sessionInfo()
 ## [1] grid      stats     graphics  grDevices utils     datasets  methods   base     
 ## 
 ## other attached packages:
-## [1] reshape2_1.4.1 ggplot2_1.0.0  dplyr_0.3.0.2  fmi_0.1.12     R6_2.0.1       knitr_1.8      devtools_1.6.1
+## [1] knitr_1.8      reshape2_1.4.1 ggplot2_1.0.0  dplyr_0.3.0.2  fmi_0.1.12     R6_2.0.1       devtools_1.6.1
 ## 
 ## loaded via a namespace (and not attached):
 ##  [1] assertthat_0.1   colorspace_1.2-4 DBI_0.3.1        digest_0.6.7     evaluate_0.5.5   formatR_1.0     

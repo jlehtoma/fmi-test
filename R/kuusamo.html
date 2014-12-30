@@ -141,7 +141,7 @@ install_github(&quot;ropengov/fmi&quot;)</code></pre>
 kiutakongas.station</code></pre>
 <pre><code>##                   Nimi FMISID LPNN  WMO   Lat   Lon Korkeus    Ryhmät Alkaen
 ## 99 Kuusamo Kiutaköngäs 101887 6802 2811 66,37 29,31     165 Sääasemat   1966</code></pre>
-<p>The convience methods in <code>fmi</code> took a little adjusting, but afterwards it is possible to use <code>FMISID</code> in the query paramaters. Following the <code>fmi</code> tutorial, it is now possible to do the following. <strong>NOTE!</strong> You will need to provide your own apiKey first:</p>
+<p>The convience methods in <code>fmi</code> took a little adjusting, but afterwards it is possible to use <code>FMISID</code> in the query paramaters. Following the <code>fmi</code> tutorial, it is now possible to do the following. <strong>NOTE!</strong> You will need to provide <a href="http://en.ilmatieteenlaitos.fi/open-data-manual-fmi-wfs-services">your own apiKey</a> first:</p>
 <pre class="r"><code>apiKey &lt;- &quot;ENTER YOUR API KEY HERE&quot;</code></pre>
 <pre class="r"><code># Set the correct FMISID
 fmisid.kiuta &lt;- kiutakongas.station$FMISID
@@ -158,7 +158,7 @@ response &lt;- client$getDailyWeather(startDateTime=&quot;2014-01-01T00:00:00Z&q
                                    endDateTime=&quot;2014-01-01T00:00:00Z&quot;,
                                    fmisid=fmisid.kiuta)</code></pre>
 <pre><code>## OGR data source with driver: GML 
-## Source: &quot;/tmp/Rtmpdv9vHV/file16e568429bdd&quot;, layer: &quot;PointTimeSeriesObservation&quot;
+## Source: &quot;/tmp/RtmpRosop5/filef06610d5a3a&quot;, layer: &quot;PointTimeSeriesObservation&quot;
 ## with 5 features and 13 fields
 ## Feature type: wkbPoint with 2 dimensions</code></pre>
 <p>Obviously we are usually interested in time periods longer than one day. In addition, massaging the data returned by <code>getDailyWeather()</code> still takes a little manual work. Wrapping this manual work into an utility function:</p>
@@ -179,17 +179,14 @@ get_weather_data &lt;- function(apiKey, startDateTime, endDateTime, fmisid) {
                                      fmisid=fmisid)
   dat &lt;- as.data.frame(response)
   
-  # Get the variable names
-  var.names &lt;- dplyr::select(dat, variable) 
-  
   # Manual splicing and dicing
-  # Get just the times and values
-  measurements &lt;- dplyr::select(dat, -fid, -gml_id, -beginPosition, -endPosition,
-                                -timePosition, -value, -identifier, -name1, 
-                                -name2, -name3, -region, -coords.x2, 
-                                -coords.x1)
-  measurements$time &lt;- as.Date(measurements$time)
-  measurements$measurement &lt;- as.numeric(measurements$measurement)
+  # 1. Get just the time, variable, and measurement
+  # 2. Replace NaNs in the response with NAs and convert measurement to numeric
+  # 3. Coerce time strings to Dates
+  measurements &lt;- dat %&gt;%
+    select(time, variable, measurement) %&gt;%
+    mutate(measurement=as.numeric(ifelse(is.na(measurement), NA, measurement))) %&gt;%
+    mutate(time=as.Date(time))
   
   return(measurements)
 }</code></pre>
@@ -199,7 +196,7 @@ endDateTime &lt;- &quot;2012-12-31&quot;
 
 kiuta.2012 &lt;- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kiuta)</code></pre>
 <pre><code>## OGR data source with driver: GML 
-## Source: &quot;/tmp/Rtmpdv9vHV/file16e53b0ef5a5&quot;, layer: &quot;PointTimeSeriesObservation&quot;
+## Source: &quot;/tmp/RtmpRosop5/filef061c8db4aa&quot;, layer: &quot;PointTimeSeriesObservation&quot;
 ## with 5 features and 743 fields
 ## Feature type: wkbPoint with 2 dimensions</code></pre>
 <p>Let’s take a look at the measurement data (first 2 days):</p>
@@ -221,7 +218,7 @@ kiuta.2012 &lt;- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kiu
 
 kaisa.2012 &lt;- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kaisa)</code></pre>
 <pre><code>## OGR data source with driver: GML 
-## Source: &quot;/tmp/Rtmpdv9vHV/file16e5af9e586&quot;, layer: &quot;PointTimeSeriesObservation&quot;
+## Source: &quot;/tmp/RtmpRosop5/filef066c12c95f&quot;, layer: &quot;PointTimeSeriesObservation&quot;
 ## with 5 features and 743 fields
 ## Feature type: wkbPoint with 2 dimensions</code></pre>
 <div id="plotting" class="section level3">
