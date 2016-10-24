@@ -1,0 +1,88 @@
+---
+output: 
+  html_document: 
+    fig_height: 8
+    fig_width: 10
+    theme: flatly
+---
+
+## Preface
+
+This demo blog post uses a very developmental version of `fmi`. To run the demo
+on your own computer, you will have to do the following:
+
+```{r install, eval=FALSE}
+# fmi depends on rwfs
+install_github("ropengov/rwfs")
+install_github("ropengov/fmi")
+```
+
+## Accessing FMI monthly temperature and precipitation grid data
+
+```{r observation-stations, message=FALSE, echo=TRUE}
+library(fmi)
+library(raster)
+library(rasterVis)
+```
+
+ **NOTE!** You will need to provide
+[your own apiKey](http://en.ilmatieteenlaitos.fi/open-data-manual-fmi-wfs-services) first:
+
+```{r apiKey-visible}
+API_KEY <- "ENTER YOUR API KEY HERE"
+```
+
+```{r apiKey-invisible,echo=FALSE}
+API_KEY <- '0253711c-056f-439b-af9d-a5a3a2920faf'
+```
+
+
+```{r get-gadm-data, echo=TRUE}
+# Get spatial data describing Åland
+aland <- raster::getData('GADM', country = 'ALA', level = 0)
+# Get geographical extent for Åland
+aland_extent <- raster::extent(bbox(aland))
+# Set the start and end dates
+start_date <- "1992-01-01"
+end_date <- "1992-12-31"
+```
+
+```{r get-fmi-data, echo=TRUE}
+# Create a request and client objects using fmi
+request <- FMIWFSRequest$new(apiKey = API_KEY)
+client <- FMIWFSClient$new(request = request)
+# Set also a geographic extent. NOTE: for unknown reasons, fmi API respects
+# the latitudinal extent in the query, but not longitudinal (i.e. the whole
+# width of Finland is returned)
+response <- client$getMonthlyWeatherRaster(startDateTime = start_date, endDateTime = end_date, bbox = aland_extent)
+```
+
+```{r post-process-data, echo=TRUE}
+# Crop the reponse data to Åland extent only
+response <- raster::crop(response, aland_extent)
+# First 12 items in the response RasterBrick are the temperature averages
+temps <- subset(response, 1:12)
+# The following 12 the precipitation averages
+precips <- subset(response, 13:24)
+# Create date objects to use as Z values for rasterVis
+idx <- seq(as.Date(start_date), as.Date(end_date), 'month')
+```
+
+```{r plot-temperature, echo=TRUE}
+# Set Z values and names for temperatures
+temps <- setZ(temps, idx)
+names(temps) <- month.abb
+levelplot(temps, main = "Monthly mean temperature (C) in 1992", 
+          par.settings = BuRdTheme)
+```
+
+```{r plot-precipitation, echo=TRUE}
+# Set Z values and names for precipitations
+precips <- setZ(precips, idx)
+names(precips) <- month.abb
+levelplot(precips, main = "Monthly mean precipitation (mm) in 1992")
+```
+
+```{r session-info}
+sessionInfo()
+```

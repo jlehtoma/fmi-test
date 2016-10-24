@@ -1,0 +1,17 @@
+```{r get-data}
+library(raster)
+library(rgdal)
+library(sp)
+
+source_url <- "http://data.fmi.fi/fmi-apikey/cca5f660-5c27-43e9-82ff-65bbd73187ef/download?producer=monthly&param=MonthlyMeanTemperature,MonthlyPrecipitation&bbox=19.30,59.70,21.0,60.60&origintime=1961-01-01T00:00:00Z&starttime=1992-01-01T00:00:00Z&endtime=2016-06-01T00:00:00Z&format=grib2&projection=epsg:4326"
+dest_file <- "fmi_grib.bin"
+
+download.file(source_url, dest_file, method = "internal")
+
+grib_data <- raster::brick(dest_file)
+grib_data_euref <- projectRaster(grib_data, crs = CRS("+init=epsg:3067"))
+grib_data_euref_sub <- subset(grib_data_euref, 1:4)
+writeRaster(subset(grib_data, 1), filename = "fmi_grib_wgs84_1.tif")
+writeRaster(subset(grib_data_euref, 1), filename = "fmi_grib_euref_1.tif")
+```
+

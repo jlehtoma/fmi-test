@@ -1,0 +1,101 @@
+---
+output: 
+  html_document: 
+    fig_height: 8
+    fig_width: 10
+    theme: flatly
+---
+
+## Preface
+
+This demo blog post uses a very developmental version of `fmi`. To run the demo
+on your own computer, you will have to do the following:
+
+```{r install, eval=FALSE}
+# fmi depends on rwfs
+install_github("ropengov/rwfs")
+install_github("ropengov/fmi")
+```
+
+## Accessing FMI lightning strikes data using package fmi
+
+```{r setup, echo=TRUE, warning=FALSE, message=FALSE}
+library(fmi)
+library(dplyr)
+library(DT)
+library(leaflet)
+library(raster)
+library(sp)
+library(tmap)
+```
+
+
+ **NOTE!** You will need to provide
+[your own apiKey](http://en.ilmatieteenlaitos.fi/open-data-manual-fmi-wfs-services) first:
+
+```{r apiKey-visible}
+API_KEY <- "ENTER YOUR API KEY HERE"
+```
+
+```{r apiKey-invisible,echo=FALSE}
+API_KEY <- '0253711c-056f-439b-af9d-a5a3a2920faf'
+```
+
+
+```{r setup-bg-map, message=FALSE}
+# Load data from tmap
+data(Europe)
+finland <- subset(Europe, iso_a3 == "FIN")
+# Project to WGS84 (EPSG:4326) from ETRS-LAEA (EPSG:3035)
+crs_wgs84 <- CRS("+init=epsg:4326")
+finland <- spTransform(finland, crs_wgs84)
+```
+
+Using the function above simplifies querying. For demonstration, let's
+get data for April 2015:
+
+```{r data-query-lightning, message=FALSE, warning=FALSE}
+# Define the query time period
+startDateTime <- "2015-06-24"
+endDateTime <- "2015-06-25"
+
+# Setup a bounding box that covers the whole of Finland
+bbox <- raster::extent(c(25, 31, 60, 70))
+
+# First, initialize a new fmi session
+init_session(API_KEY)
+
+# NOTE: the response SpatialPointsDataFrame will be in WGS84 CRS.
+lightning_data <- fmi_lightnings(startDateTime, endDateTime, bbox)
+```
+
+Let's take a look at the measurement data:
+```{r data-lightning, message=FALSE, warning=FALSE}
+DT::datatable(lightning_data@data)
+```
+
+```{r plot-map}
+# Create a palette that maps factor levels to colors
+pal <- colorFactor(c("navy", "red"), domain = c(0, 1))
+
+m <- leaflet::leaflet(lightning_data) %>%
+  addCircleMarkers(
+    radius = 3,
+    color = ~pal(cloud_indicator),
+    stroke = FALSE, fillOpacity = 0.5
+  ) %>% 
+  addLegend("bottomright", pal = pal, values = ~cloud_indicator,
+    title = "Cloud lightning", labels = c("ground", "cloud"),
+    opacity = 1
+  )
+m %>% addProviderTiles("CartoDB.Positron") 
+
+```
+
+
+That's it, a small demo on how to use `fmi` package for fetching lightning 
+strike data.
+
+```{r session-info}
+sessionInfo()
+```

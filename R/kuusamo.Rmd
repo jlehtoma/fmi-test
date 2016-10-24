@@ -1,0 +1,221 @@
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(fmi)
+library(dplyr)
+library(ggplot2)
+library(reshape2)
+library(grid)
+
+options(width=120)
+source("theme.R")
+```
+
+## Preface
+
+This demo blog post uses a very developmental version of `fmi`. To run the demo
+on your own computer, you will have to do the following:
+
+```{r install, eval=FALSE}
+# fmi depends on rwfs
+install_github("ropengov/rwfs")
+install_github("ropengov/fmi")
+```
+
+## Accessing FMI weather station data using package fmi
+
+As explained in the [previous post](https://ropengov.github.io/general/2014/09/30/fmi/), 
+package [`fmi`](https://github.com/rOpenGov/fmi) brings various kinds of data
+from the Finnish Meteorological Institute's (FMI) open API to R. The work on the
+package is still very much in progress, but when I got asked if it's 
+possible to get location (i.e. wheather station) specific precipitation and 
+temperature data for a specific time period, I decided to take `fmi` for a spin.
+
+FMI deserves compliments for the implemenetation of an open API, but the 
+documentation of some of the API parameters has left room for improvement. 
+For some lively discussion (in Finnish), see [here](https://www.facebook.com/groups/fi.okfn/permalink/10152804124115628/).
+Fortunately, method [getDailyWeather()](https://github.com/rOpenGov/fmi/blob/master/vignettes/fmi_tutorial.md#automated-request) in `fmi` returns the necessary 
+measurements (precipitation and temperature) as is, so no need to figure out the
+specific parameter values for the request. A 
+[little more digging](http://data.fmi.fi/fmi-apikey/cdc84a28-60b7-44c3-ad5d-442d34edc435/meta?observableProperty=observation&param=rrday,tday,snow,tmin,tmax&language=eng) 
+does reveal, however, more information for example on the units used to record the
+measurements. Hand picking the information from the XML reveals the following
+table:
+
+| Parameter | Label | Base phenomenon | Unit | Stat function | Agg time period |
+|-----------|-------|-----------------|------|---------------|-----------------|
+| rrday | Precipitation amount | Amount of precipitation | mm | acc | PT24H|
+| snow | Snow depth | Snow cover | cm | instant | PT1M |
+| tday | Air temperature | Temperature | degC | avg | P1D |
+| tmax | Maximum temperature | Temperature | degC | max | PT24H |
+| tmin | Minimum temperature | Temperature | degC | min | PT24H |
+
+So far so good, `rrday` and `tday` should do the trick. However, we still need
+to be able to query a specific weather station, for which we need some sort of
+an identifier. The location we're interested is Kiutaköngäs in Kuusamo, a rather
+spectacular section of rapids in the river Oulanka located right next to the 
+[Oulanka national park](https://en.wikipedia.org/wiki/Oulanka_National_Park):
+
+![Kiutaköngäs](http://static.panoramio.com/photos/large/1735117.jpg)
+
+It turns out (not by coincidence) that FMI has an active observation station 
+located at Kiutaköngäs. It may be possible to get a full list of weather 
+stations throught the FMI API itself, but so far `fmi` does not know anything 
+about it. In the meanwhile, I scraped 
+[a table of observation stations](http://en.ilmatieteenlaitos.fi/observation-stations) 
+from the FMI web site, and created a utility function `fmi_weather_stations()` 
+in `fmi`. The function returns a dataframe of all active observation stations:
+
+```{r observation-stations, echo=FALSE}
+library(fmi)
+stations <- fmi_weather_stations() 
+head(stations)
+```
+
+Using column `FMISID` seems promising, and with a little skimming through the
+table, we can locate the correct station:
+
+```{r kiutakongas}
+kiutakongas.station <- stations[99,]
+kiutakongas.station
+```
+
+The convience methods in `fmi` took a little adjusting, but afterwards it is
+possible to use `FMISID` in the query paramaters. Following the `fmi` tutorial,
+it is now possible to do the following. **NOTE!** You will need to provide
+[your own apiKey](http://en.ilmatieteenlaitos.fi/open-data-manual-fmi-wfs-services) first:
+
+```{r apiKey-visible}
+apiKey <- "ENTER YOUR API KEY HERE"
+```
+
+```{r apiKey-invisible,echo=FALSE}
+apiKey <- '0253711c-056f-439b-af9d-a5a3a2920faf'
+```
+
+
+```{r FMISID, message=FALSE}
+
+# Set the correct FMISID
+fmisid.kiuta <- kiutakongas.station$FMISID
+
+request <- FMIWFSRequest$new(apiKey=apiKey)
+  
+request$setParameters(request="getFeature",
+                      storedquery_id="fmi::observations::weather::daily::timevaluepair",
+                      parameters="rrday,snow,tday,tmin,tmax")
+  
+client <- FMIWFSClient$new(request=request)
+  
+response <- client$getDailyWeather(startDateTime="2014-01-01T00:00:00Z",
+                                   endDateTime="2014-01-01T00:00:00Z",
+                                   fmisid=fmisid.kiuta)
+
+```
+
+Obviously we are usually interested in time periods longer than one day. In
+addition, massaging the data returned by `getDailyWeather()` still takes a
+little manual work. Wrapping this manual work into an utility function:
+
+```{r utility-function, message=FALSE}
+# dplyr FTW!
+library(dplyr)
+
+get_weather_data <- function(apiKey, startDateTime, endDateTime, fmisid) {
+
+  request <- FMIWFSRequest$new(apiKey=apiKey)
+  
+  request$setParameters(request="getFeature",
+                        storedquery_id="fmi::observations::weather::daily::timevaluepair",
+                        parameters="rrday,snow,tday,tmin,tmax")
+  
+  client <- FMIWFSClient$new(request=request)
+  response <- client$getDailyWeather(startDateTime=startDateTime,
+                                     endDateTime=endDateTime,
+                                     fmisid=fmisid)
+  dat <- as.data.frame(response)
+  
+  # Manual splicing and dicing
+  # 1. Get just the time, variable, and measurement
+  # 2. Replace NaNs in the response with NAs and convert measurement to numeric
+  # 3. Coerce time strings to Dates
+  measurements <- dat %>%
+    select(time, variable, measurement) %>%
+    mutate(measurement=as.numeric(ifelse(is.na(measurement), NA, measurement))) %>%
+    mutate(time=as.Date(time))
+  
+  return(measurements)
+}
+```
+
+Using the function above simplifies querying. For demonstration, let's
+get data for the whole year 2012:
+
+```{r data-query-kuusamo, message=FALSE, warning=FALSE}
+startDateTime <- "2012-01-01"
+endDateTime <- "2012-12-31"
+
+kiuta.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kiuta)
+```
+
+Let's take a look at the measurement data (first 2 days):
+```{r data-kuusamo, message=FALSE, warning=FALSE}
+head(kiuta.2012, 10)
+```
+
+The measurements may contain NAs and values -1, which I suspect may also have
+something to do with missing values but can't say for sure.
+
+For comparison's sake, let's also get some data from Kaisaniemi (Helsinki)
+observation station:
+
+```{r data-query-helsinki, message=FALSE, warning=FALSE}
+fmisid.kaisa <- stations[24,]$FMISID
+
+kaisa.2012 <- get_weather_data(apiKey, startDateTime, endDateTime, fmisid.kaisa)
+```
+
+### Plotting
+
+Let's inspect the data by some plotting. First, however, some more data
+processing:
+
+```{r name-and-bind, message=FALSE, warning=FALSE}
+kiuta.2012$location <- "Kuusamo, Kiutaköngäs"
+
+kaisa.2012$location <- "Helsinki, Kaisaniemi"
+
+dat <- rbind(kiuta.2012, kaisa.2012)
+```
+
+First, let's plot the minimum (`tmin`), the average (`tday`) and the maximum (`tmax`) 
+temperature per day over year 2012. Plotting below uses 
+[a custom theme](/figs/2014-12-30-fmi-stations/theme.R) for `ggplot2`.
+
+```{r plot-temperature, message=FALSE, warning=FALSE,fig.width=10,fig.height=6}
+library(ggplot2)
+
+p <- ggplot(dplyr::filter(dat, variable %in% c("tday", "tmax", "tmin")), aes(x=time, y=measurement, color=variable))
+p + geom_line() + facet_wrap(~ location, ncol=1) + ylab("Temperature (C)\n") +
+  xlab("\nDate") + custom.theme
+```
+
+While we're at it, let's also plot the snowdepth:
+
+```{r plot-snowdepth, message=FALSE, warning=FALSE,fig.width=10,fig.height=6}
+p <- ggplot(dplyr::filter(dat, variable == "snow"), aes(x=time, y=measurement, color=location))
+p + geom_line(size=1) + xlab("\nDate") + ylab("Snowdepth (cm)\n") + custom.theme
+```
+
+Finally, let's take a look at precipitation measurement values and their means:
+
+```{r plot-precipitation, message=FALSE, warning=FALSE,fig.width=10,fig.height=6}
+p <- ggplot(dplyr::filter(dat, variable == "rrday"), aes(x=time, y=measurement, color=location))
+p + geom_point(alpha=1/3) + stat_smooth(method="loess", size=1) + xlab("\nDate") + 
+  ylab("Precipitation (mm)\n") + custom.theme
+```
+
+That's it, a small demo on how to use `fmi` package for fetching observation
+station specific data.
+
+```{r session-info}
+sessionInfo()
+```
